@@ -7,7 +7,7 @@ from students.models import Student
 class Feedback(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    feedback = models.TextField()
+    text = models.TextField()
     is_verified = models.BooleanField(default=False)
 
 
