@@ -37,7 +37,7 @@ class BotHandler:
     FEEDBACK_SUBMIT_FILTER = filters.create(
         lambda _, __, message: BotUser.objects.filter(
             user_id=message.from_user.id).get().state.state == BotUserState.STATES[1][0])
-    
+
     @staticmethod
     def arrange_per_row_max(matrix: list[list[InlineKeyboardButton]], n: int) -> list[list[InlineKeyboardButton]]:
         output = []
@@ -55,7 +55,7 @@ class BotHandler:
         user.state.state = BotUserState.STATES[0][0]
         user.state.data = ''
         user.state.save()
-    
+
     @staticmethod
     @app.on_message(filters.command('start') & filters.private)
     def user_start(client: Client, message: Message):
@@ -190,7 +190,7 @@ class BotHandler:
                     reply_markup=InlineKeyboardMarkup([
                         [
                             InlineKeyboardButton(
-                                str(feedback.feedbacklike_set.count()) + '👌🏿',
+                                str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
                                 callback_data='feedback-like-' + str(feedback.id)
                             )
                         ]
@@ -208,9 +208,25 @@ class BotHandler:
             if not like:
                 FeedbackLike.objects.create(feedback=feedback, student=user.student)
                 callback.answer('شما این نظر را تایید کردید.')
+                callback.message.edit_reply_markup(InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton(
+                            str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
+                            callback_data='feedback-like-' + str(feedback.id)
+                        )
+                    ]
+                ]))
             else:
                 like.delete()
                 callback.answer('شما موافقت خود را با این نظر پس گرفتید.')
+                callback.message.edit_reply_markup(InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton(
+                                str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
+                                callback_data='feedback-like-' + str(feedback.id)
+                            )
+                        ]
+                    ]))
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-course-submit-(\d+)'))
