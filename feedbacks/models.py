@@ -10,6 +10,9 @@ class Feedback(models.Model):
     text = models.TextField()
     is_verified = models.BooleanField(default=False)
 
+    def __str__(self):
+        return str(self.course) + ' - ' + str(self.student)
+
 
 class FeedbackLike(models.Model):
     feedback = models.ForeignKey(Feedback, on_delete=models.CASCADE)
