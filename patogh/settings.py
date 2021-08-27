@@ -79,7 +79,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': '[database name]',
         'USER': '[database username]',
-        'PASSWORD': '[database password]'
+        'PASSWORD': '[database password]',
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 
