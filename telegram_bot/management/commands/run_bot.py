@@ -7,6 +7,7 @@ from courses.models import Field, Course
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
 from telegram_bot.models import BotUser, BotUserState
+from pykeyboard import InlineKeyboard
 
 
 class Command(BaseCommand):
@@ -167,7 +168,7 @@ class BotHandler:
                 [
                     InlineKeyboardButton(
                         'مشاهده تمامی نظرات',
-                        callback_data='feedback-course-view-' + str(course.id)
+                        callback_data='feedback-view-' + str(course.id) + '-p-1'
                     ),
                     InlineKeyboardButton(
                         'ثبت نظر',
@@ -179,54 +180,45 @@ class BotHandler:
         )
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'feedback-course-view-(\d+)'))
+    @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)'))
     def feedbacks_view(client: Client, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
+        page = int(callback.matches[0].group(2))
         feedbacks = Feedback.objects.filter(course_id=course.id).filter(is_verified=True).all()
         if feedbacks:
-            for feedback in feedbacks:
-                callback.message.reply_text(
-                    feedback.text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [
-                            InlineKeyboardButton(
-                                str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
-                                callback_data='feedback-like-' + str(feedback.id)
-                            )
-                        ]
-                    ]),
-                    reply_to_message_id=callback.message.message_id
-                )
+            feedback = feedbacks[page - 1]
+            keyboard = InlineKeyboard(row_width=3)
+            keyboard.paginate(len(feedbacks), page, 'feedback-view-' + str(course.id) + '-p-{number}')
+            keyboard.row(InlineKeyboardButton(
+                str(feedback.feedbacklike_set.count()) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
+                'feedback-like-' + str(feedback.id)))
+            callback.message.edit_text(
+                feedback.text,
+                reply_markup=keyboard
+            )
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-like-(\d+)'))
     def feedback_like(client: Client, callback: CallbackQuery):
+
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
+        feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).all()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
+        like = feedback.feedbacklike_set.filter(student=user.student).first()
+        keyboard = InlineKeyboard(row_width=3)
+        keyboard.paginate(len(feedbacks), list(feedbacks).index(feedback) + 1, 'feedback-view-' + str(feedback.course.id) + '-p-{number}')
+        keyboard.row(InlineKeyboardButton(
+            str(feedback.feedbacklike_set.count() + (-1 if like else 1)) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
+            'feedback-like-' + str(feedback.id)))
         if feedback:
-            like = feedback.feedbacklike_set.filter(student=user.student).first()
             if not like:
                 FeedbackLike.objects.create(feedback=feedback, student=user.student)
                 callback.answer('شما این نظر را تایید کردید.')
-                callback.message.edit_reply_markup(InlineKeyboardMarkup([
-                    [
-                        InlineKeyboardButton(
-                            str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
-                            callback_data='feedback-like-' + str(feedback.id)
-                        )
-                    ]
-                ]))
+                callback.message.edit_reply_markup(keyboard)
             else:
                 like.delete()
                 callback.answer('شما موافقت خود را با این نظر پس گرفتید.')
-                callback.message.edit_reply_markup(InlineKeyboardMarkup([
-                        [
-                            InlineKeyboardButton(
-                                str(feedback.feedbacklike_set.count()) if feedback.feedbacklike_set else '' + '👌🏿',
-                                callback_data='feedback-like-' + str(feedback.id)
-                            )
-                        ]
-                    ]))
+                callback.message.edit_reply_markup(keyboard)
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-course-submit-(\d+)'))
