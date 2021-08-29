@@ -125,7 +125,7 @@ class BotHandler:
     def feedback_start(client: Client, message: Message):
         fields = Field.objects.all()
         message.reply_text(
-            "درس موردنظر را انتخاب کنید.",
+            "یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨💻",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -139,69 +139,106 @@ class BotHandler:
         )
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
-    def feedback_course_selection(client: Client, callback: CallbackQuery):
-        courses = Course.objects.filter(field_id=callback.matches[0].group(1)).all()
-        callback.message.reply_text(
-            "استاد موردنظر را انتخاب کنید.",
+    @app.on_callback_query(filters.regex(r'feedback-start'))
+    def feedback_start_by_back(client: Client, callback: CallbackQuery):
+        fields = Field.objects.all()
+        callback.message.edit_text(
+            "یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨‍💻",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
-                        course.lecturer.name,
-                        callback_data='feedback-course-' + str(course.id)
+                        field.name,
+                        callback_data='feedback-field-' + str(field.id)
                     )
-                    for course in courses
+                    for field in fields
                 ]
-            ], 3)),
-            reply_to_message_id=callback.message.message_id
+            ], 3))
         )
+        callback.answer()
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'feedback-course-(\d+)'))
+    @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
+    def feedback_course_selection(client: Client, callback: CallbackQuery):
+        field_id = callback.matches[0].group(1)
+        courses = Course.objects.filter(field_id=field_id).all()
+        keyboard = BotHandler.arrange_per_row_max([
+            [
+                InlineKeyboardButton(
+                    course.lecturer.name,
+                    callback_data='feedback-course-' + str(course.id) + '-b' + field_id
+                )
+                for course in courses
+            ]
+        ], 3)
+        keyboard.append([InlineKeyboardButton(
+            'بازگشت⬅️',
+            callback_data='feedback-start'
+        )])
+        callback.message.edit_text(
+            "کدوم استاد؟🤔",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        callback.answer()
+
+    @staticmethod
+    @app.on_callback_query(filters.regex(r'feedback-course-(\d+)-b(\d+)'))
     def feedback_lecturer_selection(client: Client, callback: CallbackQuery):
-        course = Course.objects.filter(id=callback.matches[0].group(1)).get()
-        callback.message.reply_text(
+        course_id = callback.matches[0].group(1)
+        course = Course.objects.filter(id=course_id).get()
+        field_id = callback.matches[0].group(2)
+        keyboard = InlineKeyboard()
+        keyboard.row(InlineKeyboardButton(
+            'مشاهده تجربه بقیه',
+            callback_data='feedback-view-' + str(course.id) + '-p-1-b' + field_id
+        ),
+            InlineKeyboardButton(
+                'ثبت تجربه',
+                callback_data='feedback-course-submit-' + str(course.id)
+            ))
+        keyboard.row(InlineKeyboardButton(
+            'بازگشت⬅️',
+            callback_data='feedback-field-' + field_id))
+        callback.message.edit_text(
             "انتخاب کنید.",
-            reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        'مشاهده تمامی نظرات',
-                        callback_data='feedback-view-' + str(course.id) + '-p-1'
-                    ),
-                    InlineKeyboardButton(
-                        'ثبت نظر',
-                        callback_data='feedback-course-submit-' + str(course.id)
-                    )
-                ]
-            ]),
-            reply_to_message_id=callback.message.message_id
+            reply_markup=keyboard
         )
+        callback.answer()
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)'))
+    @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)-b(\d+)'))
     def feedbacks_view(client: Client, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
         page = int(callback.matches[0].group(2))
+        field_id = callback.matches[0].group(3)
         feedbacks = Feedback.objects.filter(course_id=course.id).filter(is_verified=True).all()
         if feedbacks:
             feedback = feedbacks[page - 1]
             keyboard = InlineKeyboard(row_width=3)
-            keyboard.paginate(len(feedbacks), page, 'feedback-view-' + str(course.id) + '-p-{number}')
+            keyboard.paginate(len(feedbacks), page, 'feedback-view-' + str(course.id) + '-p-{number}-b'+field_id)
             keyboard.row(InlineKeyboardButton(
                 str(feedback.feedbacklike_set.count()) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
-                'feedback-like-' + str(feedback.id)))
+                'feedback-like-' + str(feedback.id) + '-b' + field_id))
+            keyboard.row(InlineKeyboardButton(
+                'بازگشت⬅️',
+                callback_data='feedback-field-' + field_id))
             callback.message.edit_text(
                 feedback.text,
                 reply_markup=keyboard
             )
+            callback.answer()
+        else:
+            callback.answer("هنوز هیچکس نظری برای این استاد ثبت نکرده😬"
+                            "اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید"
+                            , True)
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'feedback-like-(\d+)'))
+    @app.on_callback_query(filters.regex(r'feedback-like-(\d+)-b(\d+)'))
     def feedback_like(client: Client, callback: CallbackQuery):
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
         feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).all()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         like = feedback.feedbacklike_set.filter(student=user.student).first()
+        field_id = callback.matches[0].group(2)
         keyboard = InlineKeyboard(row_width=3)
         keyboard.paginate(len(feedbacks), list(feedbacks).index(feedback) + 1,
                           'feedback-view-' + str(feedback.course.id) + '-p-{number}')
@@ -209,14 +246,17 @@ class BotHandler:
             str(feedback.feedbacklike_set.count() + (
                 -1 if like else 1)) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
             'feedback-like-' + str(feedback.id)))
+        keyboard.row(InlineKeyboardButton(
+            'بازگشت⬅️',
+            callback_data='feedback-field-' + field_id))
         if feedback:
             if not like:
                 FeedbackLike.objects.create(feedback=feedback, student=user.student)
-                callback.answer('شما این نظر را تایید کردید.')
+                callback.answer('شما با این نظر حال کردین.')
                 callback.message.edit_reply_markup(keyboard)
             else:
                 like.delete()
-                callback.answer('شما موافقت خود با این نظر را پس گرفتید.')
+                callback.answer('تاییدتون برداشته شد.')
                 callback.message.edit_reply_markup(keyboard)
 
     @staticmethod
@@ -227,9 +267,10 @@ class BotHandler:
         user.state.state = BotUserState.STATES[1][0]
         user.state.data = str(course.id)
         user.state.save()
-        callback.message.reply_text('نظر خود را به صورت متنی وارد کنید.'
+        callback.message.reply_text('نظرتونو به صورت متنی وارد کنید.'
                                     'برای انصراف از دستور /cancel استفاده کنید.',
                                     reply_to_message_id=callback.message.message_id)
+        callback.answer()
 
     @staticmethod
     @app.on_message(filters.text & filters.private & FEEDBACK_SUBMIT_FILTER)
@@ -240,5 +281,5 @@ class BotHandler:
         feedback.course = Course.objects.filter(id=user.state.data).get()
         feedback.student = user.student
         feedback.save()
-        message.reply_text('نظر شما ثبت شد و در انتظار تایید قرار گرفت.')
+        message.reply_text('نظرتون ثبت شد و بعد بازبینی و تایید برای بقیه قابل دیدن میشه.🤓')
         BotHandler.user_state_reset(user)
