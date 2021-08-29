@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
@@ -7,7 +8,6 @@ from courses.models import Field, Course
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
 from telegram_bot.models import BotUser, BotUserState
-from pykeyboard import InlineKeyboard
 
 
 class Command(BaseCommand):
@@ -47,8 +47,8 @@ class BotHandler:
                 if output:
                     if len(output[-1]) < n:
                         output[-1].append(item)
-                        continue
-                output.append([item])
+                    else:
+                        output.append([item])
         return output
 
     @staticmethod
@@ -66,10 +66,8 @@ class BotHandler:
             user.save()
         else:
             user = BotUser(user_id=message.from_user.id, chat_id=message.chat.id)
-            state = BotUserState.objects.create(state=BotUserState.STATES[0][0], data='')
-            user.state = state
-            student = Student.objects.create()
-            user.student = student
+            user.state = BotUserState.objects.create(state=BotUserState.STATES[0][0], data='')
+            user.student = Student.objects.create()
             user.save()
             message.reply_text('دانشجوی گرامی لطفاً هر چه زودتر هویت خود را از طریق دستور /authorize احراز نمایید.')
 
@@ -119,15 +117,15 @@ class BotHandler:
         user.student.student_id = message.text
         user.student.save()
         BotHandler.user_state_reset(user)
-        message.reply_text('با موفقیت احراز هویت شدید. هویت شما کاملاً محفوظ است و تنها برای اطلاع رسانی به شما مورد '
-                           'استفاده قرار خواهد گرفت.')
+        message.reply_text('با موفقیت احراز هویت شدید. هویت شما کاملاً محفوظ است و تنها برای اطلاع‌رسانی به شما '
+                           'مورداستفاده قرار خواهد گرفت.')
 
     @staticmethod
     @app.on_message(filters.command('feedback') & filters.private)
     def feedback_start(client: Client, message: Message):
         fields = Field.objects.all()
         message.reply_text(
-            "درس مورد نظر را انتخاب کنید.",
+            "درس موردنظر را انتخاب کنید.",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -145,7 +143,7 @@ class BotHandler:
     def feedback_course_selection(client: Client, callback: CallbackQuery):
         courses = Course.objects.filter(field_id=callback.matches[0].group(1)).all()
         callback.message.reply_text(
-            "استاد مورد نظر را انتخاب کنید.",
+            "استاد موردنظر را انتخاب کنید.",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -200,15 +198,16 @@ class BotHandler:
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-like-(\d+)'))
     def feedback_like(client: Client, callback: CallbackQuery):
-
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
         feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).all()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         like = feedback.feedbacklike_set.filter(student=user.student).first()
         keyboard = InlineKeyboard(row_width=3)
-        keyboard.paginate(len(feedbacks), list(feedbacks).index(feedback) + 1, 'feedback-view-' + str(feedback.course.id) + '-p-{number}')
+        keyboard.paginate(len(feedbacks), list(feedbacks).index(feedback) + 1,
+                          'feedback-view-' + str(feedback.course.id) + '-p-{number}')
         keyboard.row(InlineKeyboardButton(
-            str(feedback.feedbacklike_set.count() + (-1 if like else 1)) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
+            str(feedback.feedbacklike_set.count() + (
+                -1 if like else 1)) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
             'feedback-like-' + str(feedback.id)))
         if feedback:
             if not like:
@@ -217,7 +216,7 @@ class BotHandler:
                 callback.message.edit_reply_markup(keyboard)
             else:
                 like.delete()
-                callback.answer('شما موافقت خود را با این نظر پس گرفتید.')
+                callback.answer('شما موافقت خود با این نظر را پس گرفتید.')
                 callback.message.edit_reply_markup(keyboard)
 
     @staticmethod
