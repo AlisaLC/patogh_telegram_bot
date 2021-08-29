@@ -81,6 +81,7 @@ DATABASES = {
         'USER': '[database username]',
         'PASSWORD': '[database password]',
         'OPTIONS': {'charset': 'utf8mb4'},
+        'CONN_MAX_AGE': 3600,
     }
 }
 
