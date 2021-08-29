@@ -47,8 +47,8 @@ class BotHandler:
                 if output:
                     if len(output[-1]) < n:
                         output[-1].append(item)
-                    else:
-                        output.append([item])
+                        continue
+                output.append([item])
         return output
 
     @staticmethod
