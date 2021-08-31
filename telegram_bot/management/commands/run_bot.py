@@ -1,5 +1,8 @@
+import requests
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db.models import Count
 from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
@@ -59,7 +62,7 @@ class BotHandler:
 
     @staticmethod
     @app.on_message(filters.command('start') & filters.private)
-    def user_start(client: Client, message: Message):
+    def user_start(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).first()
         if user:
             user.chat_id = message.chat.id
@@ -73,14 +76,14 @@ class BotHandler:
 
     @staticmethod
     @app.on_message(filters.command('cancel') & filters.private)
-    def user_cancel(client: Client, message: Message):
+    def user_cancel(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         BotHandler.user_state_reset(user)
         message.reply_text('درخواست شما لغو شد.')
 
     @staticmethod
     @app.on_message(filters.command('authorize') & filters.private)
-    def user_authorize(client: Client, message: Message):
+    def user_authorize(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         message.reply_text('نام کوچک خود را وارد کنید.')
         user.state.state = BotUserState.STATES[2][0]
@@ -90,7 +93,7 @@ class BotHandler:
     @staticmethod
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_FIRST_NAME_FILTER)
-    def authorization_first_name(client: Client, message: Message):
+    def authorization_first_name(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.first_name = message.text
         user.student.save()
@@ -101,7 +104,7 @@ class BotHandler:
     @staticmethod
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_LAST_NAME_FILTER)
-    def authorization_last_name(client: Client, message: Message):
+    def authorization_last_name(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.last_name = message.text
         user.student.save()
@@ -112,7 +115,7 @@ class BotHandler:
     @staticmethod
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_STUDENT_ID_FILTER)
-    def authorization_student_id(client: Client, message: Message):
+    def authorization_student_id(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.student_id = message.text
         user.student.save()
@@ -122,10 +125,10 @@ class BotHandler:
 
     @staticmethod
     @app.on_message(filters.command('feedback') & filters.private)
-    def feedback_start(client: Client, message: Message):
+    def feedback_start(_, message: Message):
         fields = Field.objects.all()
         message.reply_text(
-            "یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨💻",
+            'یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨💻',
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -140,10 +143,10 @@ class BotHandler:
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-start'))
-    def feedback_start_by_back(client: Client, callback: CallbackQuery):
+    def feedback_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.all()
         callback.message.edit_text(
-            "یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨‍💻",
+            'یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨‍💻',
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -158,7 +161,7 @@ class BotHandler:
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
-    def feedback_course_selection(client: Client, callback: CallbackQuery):
+    def feedback_course_selection(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
         courses = Course.objects.filter(field_id=field_id).all()
         keyboard = BotHandler.arrange_per_row_max([
@@ -175,14 +178,15 @@ class BotHandler:
             callback_data='feedback-start'
         )])
         callback.message.edit_text(
-            "کدوم استاد؟🤔",
+            'درس: ' + Field.objects.filter(id=field_id).get().name + '\n' +
+            'کدوم استاد؟🤔',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         callback.answer()
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-course-(\d+)-b(\d+)'))
-    def feedback_lecturer_selection(client: Client, callback: CallbackQuery):
+    def feedback_lecturer_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
         field_id = callback.matches[0].group(2)
@@ -198,23 +202,40 @@ class BotHandler:
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='feedback-field-' + field_id))
+        session = requests.Session()
+        text = session.get('http://term.inator.ir/courses/info/' + field_id + '/',
+                           cookies={'sessionid': settings.SESSION_ID}).text
+        soup = BeautifulSoup(text, features="html.parser")
+        tds = soup.tbody.find_all("td")
+        total_capacity = 0
+        terminator_capacity_filled = 0
+        for lecture in course.lecture_set.all():
+            for i in range(0, len(tds), 5):
+                if tds[i].string == str(lecture.group_id):
+                    total_capacity += int(tds[i + 3].string)
+                    terminator_capacity_filled += int(tds[i + 4].string)
         callback.message.edit_text(
-            "انتخاب کنید.",
+            'درس: ' + course.field.name + '\n' +
+            'استاد: ' + course.lecturer.name + '\n' +
+            'ظرفیت درس: ' + str(total_capacity) + '\n' +
+            'ثبت‌نامی در ترم‌ایناتور: ' + str(terminator_capacity_filled) + '\n' +
+            'انتخاب کنید.',
             reply_markup=keyboard
         )
         callback.answer()
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)-b(\d+)'))
-    def feedbacks_view(client: Client, callback: CallbackQuery):
+    def feedbacks_view(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
         page = int(callback.matches[0].group(2))
         field_id = callback.matches[0].group(3)
-        feedbacks = Feedback.objects.filter(course_id=course.id).filter(is_verified=True).all()
+        feedbacks = Feedback.objects.filter(course_id=course.id).filter(is_verified=True).annotate(
+            num_likes=Count('feedbacklike')).order_by('-num_likes').all()
         if feedbacks:
             feedback = feedbacks[page - 1]
             keyboard = InlineKeyboard(row_width=3)
-            keyboard.paginate(len(feedbacks), page, 'feedback-view-' + str(course.id) + '-p-{number}-b'+field_id)
+            keyboard.paginate(len(feedbacks), page, 'feedback-view-' + str(course.id) + '-p-{number}-b' + field_id)
             keyboard.row(InlineKeyboardButton(
                 str(feedback.feedbacklike_set.count()) + '👌🏿' if feedback.feedbacklike_set else '' + '👌🏿',
                 'feedback-like-' + str(feedback.id) + '-b' + field_id))
@@ -227,15 +248,16 @@ class BotHandler:
             )
             callback.answer()
         else:
-            callback.answer("هنوز هیچکس نظری برای این استاد ثبت نکرده😬"
-                            "اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید"
+            callback.answer('هنوز هیچکس نظری برای این استاد ثبت نکرده😬'
+                            'اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید'
                             , True)
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-like-(\d+)-b(\d+)'))
-    def feedback_like(client: Client, callback: CallbackQuery):
+    def feedback_like(_, callback: CallbackQuery):
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
-        feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).all()
+        feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).annotate(
+            num_likes=Count('feedbacklike')).order_by('-num_likes').all()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         like = feedback.feedbacklike_set.filter(student=user.student).first()
         field_id = callback.matches[0].group(2)
@@ -261,7 +283,7 @@ class BotHandler:
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-course-submit-(\d+)'))
-    def feedback_submit_state_set(client: Client, callback: CallbackQuery):
+    def feedback_submit_state_set(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         user.state.state = BotUserState.STATES[1][0]
@@ -274,7 +296,7 @@ class BotHandler:
 
     @staticmethod
     @app.on_message(filters.text & filters.private & FEEDBACK_SUBMIT_FILTER)
-    def feedback_submit(client: Client, message: Message):
+    def feedback_submit(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         feedback = Feedback()
         feedback.text = message.text
