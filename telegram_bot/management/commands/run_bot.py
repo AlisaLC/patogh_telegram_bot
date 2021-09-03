@@ -1,3 +1,5 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
 from django.conf import settings
@@ -7,7 +9,7 @@ from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
-from courses.models import Field, Course
+from courses.models import Field, Course, Lecture
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
 from telegram_bot.models import BotUser, BotUserState
@@ -21,9 +23,12 @@ class Command(BaseCommand):
 
 class BotHandler:
     app = Client('patogh_bot', bot_token=settings.BOT_TOKEN, api_id=settings.BOT_API_ID, api_hash=settings.BOT_API_HASH)
+    session = requests.Session()
 
     def __init__(self, command):
         self.command = command
+        if not BotHandler.session.cookies.get_dict().get('sessionid'):
+            BotHandler.login_session(BotHandler.session, '99123456')
         self.app.run()
 
     AUTHORIZATION_FIRST_NAME_FILTER = filters.create(
@@ -47,10 +52,9 @@ class BotHandler:
         output = []
         for rows in matrix:
             for item in rows:
-                if output:
-                    if len(output[-1]) < n:
-                        output[-1].append(item)
-                        continue
+                if output and len(output[-1]) < n:
+                    output[-1].append(item)
+                    continue
                 output.append([item])
         return output
 
@@ -129,7 +133,10 @@ class BotHandler:
         fields = Field.objects.all()
         message.reply_text(
             'یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨💻',
-            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
+                'مشاهده بازخورد های تمام دروس من در سامانه ترم‌ایناتور',
+                callback_data='feedback-terminator'
+            )]] + BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
                         field.name,
@@ -147,7 +154,10 @@ class BotHandler:
         fields = Field.objects.all()
         callback.message.edit_text(
             'یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨‍💻',
-            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
+                'مشاهده بازخورد های تمام دروس من در سامانه ترم‌ایناتور',
+                callback_data='feedback-terminator'
+            )]] + BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
                         field.name,
@@ -158,6 +168,52 @@ class BotHandler:
             ], 3))
         )
         callback.answer()
+
+    @staticmethod
+    @app.on_callback_query(filters.regex(r'feedback-terminator'))
+    def feedback_terminator(_, callback: CallbackQuery):
+        user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
+        student_id = str(user.student.student_id)
+        match = re.match(r'\d{8}', student_id)
+        if not match:
+            callback.answer('ابتدا باید شماره دانشجویی خود را در بخش احراز هویت وارد نمایید.')
+            return
+        session = requests.Session()
+        BotHandler.login_session(session, student_id)
+        text = session.get('http://term.inator.ir/schedule/summary/').text
+        soup = BeautifulSoup(text, features="html.parser")
+        rows = soup.table.find_all('tr')
+        buttons = []
+        for row in rows:
+            if row.get('id'):
+                match = re.match(r'course-(\d{5})-(\d{1,2})', row['id'])
+                if match:
+                    field_id = match.group(1)
+                    group_id = match.group(2)
+                    lecture = Lecture.objects.filter(group_id=group_id).filter(course__field__id=field_id).first()
+                    if lecture:
+                        buttons.append([
+                            InlineKeyboardButton(lecture.course.field.name + ' - ' + lecture.course.lecturer.name,
+                                                 callback_data='feedback-course-' + str(
+                                                     lecture.course.id) + '-b' + field_id)])
+        if not buttons:
+            callback.answer('لیست دروس ترم‌ایناتور شما خالیست.')
+            return
+        callback.message.edit_text('یکی از درسای زیر رو انتخاب کن تا ببینم چیا بهم گفتن راجبش.👨‍💻',
+                                   reply_markup=InlineKeyboardMarkup(buttons))
+        callback.answer()
+
+    @staticmethod
+    def login_session(site_session, student_id):
+        text = site_session.get('http://term.inator.ir/login/?next=/').text
+        soup = BeautifulSoup(text, features="html.parser")
+        inputs = soup.form.find_all('input')
+        data = {'student-id': student_id}
+        for text_input in inputs:
+            if text_input.get('name') == 'csrfmiddlewaretoken':
+                data['csrfmiddlewaretoken'] = text_input['value']
+                break
+        site_session.post('http://term.inator.ir/login/?next=/', data, cookies={'csrftoken': data['csrfmiddlewaretoken']})
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
@@ -202,9 +258,7 @@ class BotHandler:
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='feedback-field-' + field_id))
-        session = requests.Session()
-        text = session.get('http://term.inator.ir/courses/info/' + field_id + '/',
-                           cookies={'sessionid': settings.SESSION_ID}).text
+        text = BotHandler.session.get('http://term.inator.ir/courses/info/' + field_id + '/').text
         soup = BeautifulSoup(text, features="html.parser")
         tds = soup.tbody.find_all("td")
         total_capacity = 0
