@@ -79,8 +79,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'patogh',
-        'USER': 'admin',
-        'PASSWORD': 'MTNM1783',
+        'USER': '',
+        'PASSWORD': '',
         'OPTIONS': {'charset': 'utf8mb4'},
         'CONN_MAX_AGE': 3600,
     }
@@ -127,8 +127,8 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-BOT_TOKEN = '1912123189:AAGt92LmNzRt7YoL7hq-TB-5WCk8AQFGjg8'
+BOT_TOKEN = 'BOT_TOKEN'
 
-BOT_API_ID = 2506095
+BOT_API_ID = 'BOT_API_ID'
 
-BOT_API_HASH = '4ee0d631a77ccaa078cbbc0bda3484bf'
+BOT_API_HASH = 'BOT_API_HASH'
