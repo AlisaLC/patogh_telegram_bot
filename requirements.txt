@@ -1,0 +1,7 @@
+requests==2.26.0
+beautifulsoup4==4.9.3
+Django==3.2.7
+pykeyboard==0.1.2
+pyrogram==1.2.9
+tgcrypto==1.2.2
+mysqlclient==2.0.3
