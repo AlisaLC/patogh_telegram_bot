@@ -5,7 +5,6 @@ from students.models import Student
 
 
 class ClassVideo(models.Model):
-    id = models.IntegerField(primary_key=True)
     link = models.TextField()
     subject = models.CharField(max_length=1000, default=' - ')
     lecture_class_session = models.ForeignKey(LectureClassSession, on_delete=models.CASCADE)
@@ -17,7 +16,6 @@ class ClassVideo(models.Model):
 
 
 class ClassNote(models.Model):
-    id = models.IntegerField(primary_key=True)
     link = models.TextField()
     subject = models.CharField(max_length=1000, default=' - ')
     lecture_class_session = models.ForeignKey(LectureClassSession, on_delete=models.CASCADE)
@@ -28,10 +26,9 @@ class ClassNote(models.Model):
         return str(self.lecture_class_session) + ' - ' + str(self.link)
 
 
-# class GroupLink:
-#     id = models.IntegerField(primary_key=True)
-#     telegram_link = models.TextField()
-#     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-#
-#     def __str__(self):
-#         return str(self.course) + ' - ' + str(self.telegram_link)
+class GroupLink(models.Model):
+    telegram_link = models.TextField()
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.course) + ' - ' + str(self.telegram_link)

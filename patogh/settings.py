@@ -78,9 +78,9 @@ WSGI_APPLICATION = 'patogh.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'patogh',
-        'USER': '',
-        'PASSWORD': '',
+        'NAME': 'NAME',
+        'USER': 'USER',
+        'PASSWORD': 'PASSWORD',
         'OPTIONS': {'charset': 'utf8mb4'},
         'CONN_MAX_AGE': 3600,
     }

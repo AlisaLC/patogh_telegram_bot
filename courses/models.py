@@ -54,7 +54,6 @@ class LectureSession(models.Model):
 
 
 class LectureClassSession(models.Model):
-    id = models.IntegerField(primary_key=True)
     session_number = models.IntegerField()
     date = models.DateField()
     course = models.ForeignKey(Course, on_delete=models.CASCADE)

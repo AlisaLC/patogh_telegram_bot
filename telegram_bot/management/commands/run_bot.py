@@ -9,7 +9,7 @@ from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
-from archives.models import ClassVideo, ClassNote
+from archives.models import ClassVideo, ClassNote, GroupLink
 from courses.models import Field, Course, LectureClassSession
 from courses.models import Field, Course, Lecture
 from feedbacks.models import Feedback, FeedbackLike
@@ -159,7 +159,9 @@ class BotHandler:
     def class_archives_start_by_back(client: Client, callback: CallbackQuery):
         fields = Field.objects.all()
         callback.message.edit_text(
-            "به آرشیو بزرگ فیلم های ضبط شده خوش اومدی...",
+            "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
+            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
+            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -213,7 +215,7 @@ class BotHandler:
             ))
         keyboard.row(InlineKeyboardButton(
             'لینک گروه تلگرامی درس️',
-            callback_data='feedback-field-' + field_id))
+            callback_data='class_archives-group_link-course-' + str(course_id) + '-b' + str(field_id)))
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='class_archives-field-' + str(field_id)))
@@ -222,6 +224,28 @@ class BotHandler:
             reply_markup=keyboard
         )
         callback.answer()
+
+    @staticmethod
+    @app.on_callback_query(filters.regex(r'class_archives-group_link-course-(\d+)-b(\d+)'))
+    def class_archives_link_view(client: Client, callback: CallbackQuery):
+        course_id = callback.matches[0].group(1)
+        course = Course.objects.filter(id=course_id).get()
+        field_id = callback.matches[0].group(2)
+        links = GroupLink.objects.filter(course_id=course_id).all()
+        if links:
+            link = links[0]
+            keyboard = InlineKeyboard()
+            keyboard.row(InlineKeyboardButton(
+                'بازگشت⬅️',
+                callback_data='class_archives-course-' + str(course.id) + '-b' + str(field_id)))
+            callback.message.edit_text('🔹کلاس ' + course.field.name + '\n'
+                                                                       '🔸استاد درس: ' + course.lecturer.name + '\n'
+                                                                                                                '🔗لینک های کلاس:' + '\n'
+                                                                                                                                      '    🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n'
+                                       , reply_markup=keyboard)
+            callback.answer()
+        else:
+            callback.answer('گروهی یافت نشد!', True)
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'class_archives-videos-course-(\d+)-b(\d+)'))
@@ -319,7 +343,7 @@ class BotHandler:
         user.state.state = BotUserState.STATES[3][0]
         user.state.data = str(session_id)
         user.state.save()
-        callback.message.reply_text('فقط لینک فایل را ارسال کنید.\n'
+        callback.message.reply_text('فایل را در هر مکان قابل دسترسی بارگذاری کرده و فقط لینک فایل را ارسال کنید.\n'
                                     'نام شما به عنوان فرستنده جزوه نشان داده خواهد شد.'
                                     'برای انصراف از دستور /cancel استفاده کنید.',
                                     reply_to_message_id=callback.message.message_id)
@@ -423,7 +447,7 @@ class BotHandler:
         user.state.state = BotUserState.STATES[3][0]
         user.state.data = str(session_id)
         user.state.save()
-        callback.message.reply_text('فقط لینک فایل را ارسال کنید.\n'
+        callback.message.reply_text('فایل را در هر مکان قابل دسترسی بارگذاری کرده و فقط لینک فایل را ارسال کنید.\n'
                                     'نام شما به عنوان فرستنده جزوه نشان داده خواهد شد.'
                                     'برای انصراف از دستور /cancel استفاده کنید.',
                                     reply_to_message_id=callback.message.message_id)
@@ -529,7 +553,8 @@ class BotHandler:
             if text_input.get('name') == 'csrfmiddlewaretoken':
                 data['csrfmiddlewaretoken'] = text_input['value']
                 break
-        site_session.post('http://term.inator.ir/login/?next=/', data, cookies={'csrftoken': data['csrfmiddlewaretoken']})
+        site_session.post('http://term.inator.ir/login/?next=/', data,
+                          cookies={'csrftoken': data['csrfmiddlewaretoken']})
 
     @staticmethod
     @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
