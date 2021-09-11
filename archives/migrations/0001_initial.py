@@ -15,20 +15,32 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Feedback',
+            name='GroupLink',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('text', models.TextField()),
-                ('is_verified', models.BooleanField(default=False)),
+                ('telegram_link', models.TextField()),
                 ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='ClassVideo',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('link', models.TextField()),
+                ('subject', models.CharField(default=' - ', max_length=1000)),
+                ('is_verified', models.BooleanField(default=False)),
+                ('lecture_class_session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.lectureclasssession')),
                 ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='students.student')),
             ],
         ),
         migrations.CreateModel(
-            name='FeedbackLike',
+            name='ClassNote',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('feedback', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='feedbacks.feedback')),
+                ('link', models.TextField()),
+                ('subject', models.CharField(default=' - ', max_length=1000)),
+                ('is_verified', models.BooleanField(default=False)),
+                ('lecture_class_session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.lectureclasssession')),
                 ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='students.student')),
             ],
         ),

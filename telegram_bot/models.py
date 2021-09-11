@@ -6,7 +6,8 @@ from students.models import Student
 class BotUserState(models.Model):
     STATES = ((0, 'None'),
               (1, 'Giving Feedback'),
-              (2, 'Authorizing'))
+              (2, 'Authorizing'),
+              (3, 'Archiving'))
 
     state = models.IntegerField(choices=STATES)
     data = models.TextField()

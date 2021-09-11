@@ -30,6 +30,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'courses.apps.CoursesConfig',
+    'archives.apps.ArchivesConfig',
     'feedbacks.apps.FeedbacksConfig',
     'students.apps.StudentsConfig',
     'telegram_bot.apps.TelegramBotConfig',
@@ -77,9 +78,9 @@ WSGI_APPLICATION = 'patogh.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': '[database name]',
-        'USER': '[database username]',
-        'PASSWORD': '[database password]',
+        'NAME': 'NAME',
+        'USER': 'USER',
+        'PASSWORD': 'PASSWORD',
         'OPTIONS': {'charset': 'utf8mb4'},
         'CONN_MAX_AGE': 3600,
     }
@@ -126,8 +127,8 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-BOT_TOKEN = '[bot token]'
+BOT_TOKEN = 'BOT_TOKEN'
 
-BOT_API_ID = -1
+BOT_API_ID = 'BOT_API_ID'
 
-BOT_API_HASH = '[bot api id]'
+BOT_API_HASH = 'BOT_API_HASH'

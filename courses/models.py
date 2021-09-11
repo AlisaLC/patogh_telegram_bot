@@ -51,3 +51,12 @@ class LectureSession(models.Model):
 
     def __str__(self):
         return str(self.lecture) + ' - ' + self.day + ' from ' + str(self.start_time) + ' to ' + str(self.end_time)
+
+
+class LectureClassSession(models.Model):
+    session_number = models.IntegerField()
+    date = models.DateField()
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.id) + ' - ' + str(self.course) + ' - ' + str(self.date)
