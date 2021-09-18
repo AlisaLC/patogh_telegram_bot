@@ -1,4 +1,5 @@
 import re
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -27,11 +28,13 @@ class Command(BaseCommand):
 def connection_check():
     def decorate(func):
         def call(*args, **kwargs):
-            cursor = connection.cursor()
-            try:
-                cursor.execute('SELECT 1')
-            except OperationalError:
-                connection.connect()
+            db_conn = False
+            while not db_conn:
+                try:
+                    connection.ensure_connection()
+                    db_conn = True
+                except OperationalError:
+                    time.sleep(1)
             result = func(*args, **kwargs)
             return result
 
