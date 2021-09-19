@@ -141,7 +141,10 @@ class BotHandler:
     @app.on_message(filters.command('class_archives') & filters.private)
     def class_archives_start(client: Client, message: Message):
         fields = Field.objects.all()
-        message.reply_text("به آرشیو بزرگ فیلم های ضبط شده خوش اومدی...",
+        message.reply_text(
+            "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
+            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
+            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
                            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                                [
                                    InlineKeyboardButton(
@@ -335,7 +338,7 @@ class BotHandler:
             callback.answer()
 
     @staticmethod
-    @app.on_callback_query(filters.regex(r'class_archives_videos-add-session-(\d+)'))
+    @app.on_callback_query(filters.regex(r'class_archives-videos-add-session-(\d+)'))
     def class_archives_videos_add(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_session = LectureClassSession.objects.filter(id=session_id).all()
@@ -391,8 +394,9 @@ class BotHandler:
     @app.on_callback_query(filters.regex(r'class_archives-notes-view-session-(\d+)'))
     def class_archives_note_selection(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
-        lecture_class_session = LectureClassSession.objects.filter(id=session_id).all()
-        course = lecture_class_session[0].course
+        lecture_class_sessions = LectureClassSession.objects.filter(id=session_id).all()
+        lecture_class_session = lecture_class_sessions[0]
+        course = lecture_class_session.course
         notes = ClassNote.objects.filter(lecture_class_session_id=session_id).filter(is_verified=True).all()
         if notes:
             callback.message.edit_text("جزوه نوشته شده توسط کدوم یکی رو میخوای؟",
@@ -401,7 +405,7 @@ class BotHandler:
                                                InlineKeyboardButton(
                                                    note.student.first_name + ' ' + note.student.last_name,
                                                    callback_data='class_archives-note-view-session-' + str(
-                                                       lecture_class_session.id) + str(
+                                                       lecture_class_session.id) + '-b' + str(
                                                        note.id)
                                                )
                                                for note in notes
