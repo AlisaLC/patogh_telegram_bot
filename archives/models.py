@@ -27,7 +27,9 @@ class ClassNote(models.Model):
 
 
 class GroupLink(models.Model):
-    telegram_link = models.CharField(max_length=2000)
+    class_link = models.TextField(default=' - ')
+    source_link = models.TextField(default=' - ')
+    telegram_link = models.TextField(default=' - ')
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
