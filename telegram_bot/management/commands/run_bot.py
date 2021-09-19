@@ -1,17 +1,19 @@
 import re
+import time
 
 import requests
 from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import connection, OperationalError
 from django.db.models import Count
 from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
 from archives.models import ClassVideo, ClassNote, GroupLink
-from courses.models import Field, Course, LectureClassSession
 from courses.models import Field, Course, Lecture
+from courses.models import LectureClassSession
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
 from telegram_bot.models import BotUser, BotUserState
@@ -21,6 +23,24 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         BotHandler(self)
+
+
+def connection_check():
+    def decorate(func):
+        def call(*args, **kwargs):
+            db_conn = False
+            while not db_conn:
+                try:
+                    connection.ensure_connection()
+                    db_conn = True
+                except OperationalError:
+                    time.sleep(1)
+            result = func(*args, **kwargs)
+            return result
+
+        return call
+
+    return decorate
 
 
 class BotHandler:
@@ -75,6 +95,7 @@ class BotHandler:
         user.state.save()
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.command('start') & filters.private)
     def user_start(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).first()
@@ -89,6 +110,7 @@ class BotHandler:
             message.reply_text('دانشجوی گرامی لطفاً هر چه زودتر هویت خود را از طریق دستور /authorize احراز نمایید.')
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.command('cancel') & filters.private)
     def user_cancel(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
@@ -96,6 +118,7 @@ class BotHandler:
         message.reply_text('درخواست شما لغو شد.')
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.command('authorize') & filters.private)
     def user_authorize(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
@@ -105,6 +128,7 @@ class BotHandler:
         user.state.save()
 
     @staticmethod
+    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_FIRST_NAME_FILTER)
     def authorization_first_name(_, message: Message):
@@ -116,6 +140,7 @@ class BotHandler:
         message.reply_text('نام خانوادگی خود را وارد کنید.')
 
     @staticmethod
+    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_LAST_NAME_FILTER)
     def authorization_last_name(_, message: Message):
@@ -127,6 +152,7 @@ class BotHandler:
         message.reply_text('شماره دانشجویی خود را وارد کنید.')
 
     @staticmethod
+    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_STUDENT_ID_FILTER)
     def authorization_student_id(_, message: Message):
@@ -138,8 +164,9 @@ class BotHandler:
                            'مورداستفاده قرار خواهد گرفت.')
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.command('class_archives') & filters.private)
-    def class_archives_start(client: Client, message: Message):
+    def class_archives_start(_, message: Message):
         fields = Field.objects.all()
         message.reply_text(
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
@@ -158,12 +185,14 @@ class BotHandler:
                            )
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-start'))
-    def class_archives_start_by_back(client: Client, callback: CallbackQuery):
+    def class_archives_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.all()
         callback.message.edit_text(
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
-            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
+            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل "
+            "گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
             "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
@@ -178,8 +207,9 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-field-(\d+)'))
-    def class_archives_course_selection(client: Client, callback: CallbackQuery):
+    def class_archives_course_selection(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
         courses = Course.objects.filter(field_id=field_id).all()
         keyboard = BotHandler.arrange_per_row_max([
@@ -202,8 +232,9 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-course-(\d+)-b(\d+)'))
-    def class_archives_archive_selection(client: Client, callback: CallbackQuery):
+    def class_archives_archive_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
         field_id = callback.matches[0].group(2)
@@ -229,8 +260,9 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-group_link-course-(\d+)-b(\d+)'))
-    def class_archives_link_view(client: Client, callback: CallbackQuery):
+    def class_archives_link_view(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
         field_id = callback.matches[0].group(2)
@@ -241,21 +273,19 @@ class BotHandler:
             keyboard.row(InlineKeyboardButton(
                 'بازگشت⬅️',
                 callback_data='class_archives-course-' + str(course.id) + '-b' + str(field_id)))
-            callback.message.edit_text('🔹کلاس ' + course.field.name + '\n'
-                                                                       '🔸استاد درس: ' + course.lecturer.name + '\n'
-                                                                                                                '🔗لینک های کلاس:' + '\n'
-                                                                                                                                      '    🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n'
-                                       , reply_markup=keyboard)
+            callback.message.edit_text(
+                '🔹کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name +
+                '\n🔗لینک های کلاس:\n  🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n',
+                reply_markup=keyboard)
             callback.answer()
         else:
             callback.answer('گروهی یافت نشد!', True)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-course-(\d+)-b(\d+)'))
-    def class_archives_video_session_selection(client: Client, callback: CallbackQuery):
+    def class_archives_video_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
-        course = Course.objects.filter(id=course_id).get()
-        field_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
         if lecture_class_sessions:
             callback.message.edit_text("کدوم جلسه؟...",
@@ -275,11 +305,10 @@ class BotHandler:
             callback.answer("هنوز جلسه ای موجود نیست!", True)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-course-(\d+)-b(\d+)'))
-    def class_archives_note_session_selection(client: Client, callback: CallbackQuery):
+    def class_archives_note_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
-        course = Course.objects.filter(id=course_id).get()
-        field_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
         if lecture_class_sessions:
             callback.message.edit_text("کدوم جلسه؟...",
@@ -299,6 +328,7 @@ class BotHandler:
             callback.answer("هنوز جلسه ای موجود نیست!", True)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-view-session-(\d+)'))
     def class_archives_video_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
@@ -312,17 +342,27 @@ class BotHandler:
             keyboard.row(InlineKeyboardButton(
                 'بازگشت⬅️',
                 callback_data='class_archives-videos-course-' + str(course.id) + '-b' + str(course.field_id)))
-            callback.message.reply_text(
-                '🔹ویدیوی کلاس ' + course.field.name + '\n'
-                                                       '🔸استاد درس: ' + course.lecturer.name + '\n'
-                                                                                                '🔹جلسه  ' + str(
-                    lecture_class_session.session_number) + 'ام' + '\n'
-                                                                   '🔸تاریخ  ' + str(lecture_class_session.date) + '\n'
-                                                                                                                   '🔹موضوع جلسه: ' + video.subject + '\n'
-                                                                                                                                                      '🔸ضبط توسط: ' + video.student.first_name + ' ' + video.student.last_name + '\n\n' +
-                video.link,
-                reply_markup=keyboard
-            )
+            try:
+                chat_id = video.link.split('/')[-2]
+                if chat_id.isdigit():
+                    chat_id = int(chat_id)
+                message_id = int(video.link.split('/')[-1])
+                client.copy_message(chat_id=callback.message.chat.id, from_chat_id=chat_id, message_id=message_id)
+                callback.message.reply_text(
+                    '🔹ویدیوی کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                        lecture_class_session.session_number) + 'ام' + '\n🔸تاریخ  ' + str(lecture_class_session.date) +
+                    '\n🔹موضوع جلسه: ' + video.subject + '\n🔸ضبط توسط: ' + video.student.first_name + ' ' +
+                    video.student.last_name,
+                    reply_markup=keyboard
+                )
+            except:
+                callback.message.reply_text(
+                    '🔹ویدیوی کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                        lecture_class_session.session_number) + 'ام' + '\n🔸تاریخ  ' + str(lecture_class_session.date) +
+                    '\n🔹موضوع جلسه: ' + video.subject + '\n🔸ضبط توسط: ' + video.student.first_name + ' ' +
+                    video.student.last_name + '\n\n' + video.link,
+                    reply_markup=keyboard
+                )
             callback.answer()
         else:
             keyboard.row(InlineKeyboardButton(
@@ -338,10 +378,10 @@ class BotHandler:
             callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-add-session-(\d+)'))
     def class_archives_videos_add(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
-        lecture_class_session = LectureClassSession.objects.filter(id=session_id).all()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         user.state.state = BotUserState.STATES[3][0]
         user.state.data = str(session_id)
@@ -353,8 +393,9 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
-    def class_archive_submit_video(client: Client, message: Message):
+    def class_archive_submit_video(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         video = ClassVideo()
         video.link = message.text
@@ -367,8 +408,9 @@ class BotHandler:
         BotHandler.user_state_reset(user)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-session-(\d+)'))
-    def class_archives_notes_action_selection(client: Client, callback: CallbackQuery):
+    def class_archives_notes_action_selection(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_session = LectureClassSession.objects.filter(id=session_id).all()
         course = lecture_class_session[0].course
@@ -391,11 +433,11 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-view-session-(\d+)'))
-    def class_archives_note_selection(client: Client, callback: CallbackQuery):
+    def class_archives_note_selection(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
-        lecture_class_sessions = LectureClassSession.objects.filter(id=session_id).all()
-        lecture_class_session = lecture_class_sessions[0]
+        lecture_class_session = LectureClassSession.objects.filter(id=session_id).first()
         course = lecture_class_session.course
         notes = ClassNote.objects.filter(lecture_class_session_id=session_id).filter(is_verified=True).all()
         if notes:
@@ -417,6 +459,7 @@ class BotHandler:
             callback.answer('هنوز جزوه ای برای این جلسه به آرشیو اضافه نشده! در کامل کردن آرشیو سهیم باشید:)', True)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-note-view-session-(\d+)-b(\d+)'))
     def class_archives_note_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
@@ -430,22 +473,33 @@ class BotHandler:
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='class_archives-notes-view-session-' + str(session_id)))
-        callback.message.reply_text(
-            '🔹جزوه کلاس ' + course.field.name + '\n'
-                                                 '🔸استاد درس: ' + course.lecturer.name + '\n'
-                                                                                          '🔹جلسه  ' + str(
-                lecture_class_session.session_number) + 'ام' + '\n'
-                                                               '🔸تاریخ  ' + str(lecture_class_session.date) + '\n'
-                                                                                                               '🔹موضوع جلسه: ' + note.subject + '\n'
-                                                                                                                                                 '🔸نوشته شده توسط: ' + note.student.first_name + ' ' + note.student.last_name + '\n\n' +
-            note.link,
-            reply_markup=keyboard
-        )
+        try:
+            chat_id = note.link.split('/')[-2]
+            if chat_id.isdigit():
+                chat_id = int(chat_id)
+            message_id = int(note.link.split('/')[-1])
+            client.copy_message(chat_id=callback.message.chat.id, from_chat_id=chat_id, message_id=message_id)
+            callback.message.reply_text(
+                '🔹جزوه کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                    lecture_class_session.session_number) + 'ام\n🔸تاریخ  ' + str(
+                    lecture_class_session.date) + '\n🔹موضوع جلسه: ' + note.subject + '\n🔸نوشته شده توسط: ' +
+                note.student.first_name + ' ' + note.student.last_name,
+                reply_markup=keyboard
+            )
+        except:
+            callback.message.reply_text(
+                '🔹جزوه کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                    lecture_class_session.session_number) + 'ام\n🔸تاریخ  ' + str(
+                    lecture_class_session.date) + '\n🔹موضوع جلسه: ' + note.subject + '\n🔸نوشته شده توسط: ' +
+                note.student.first_name + ' ' + note.student.last_name + '\n\n' + note.link,
+                reply_markup=keyboard
+            )
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-add-session-(\d+)'))
-    def class_archive_add_note(client: Client, callback: CallbackQuery):
+    def class_archive_add_note(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         user.state.state = BotUserState.STATES[3][0]
@@ -458,8 +512,9 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
-    def class_archive_submit_note(client: Client, message: Message):
+    def class_archive_submit_note(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         note = ClassNote()
         note.link = message.text
@@ -472,6 +527,7 @@ class BotHandler:
         BotHandler.user_state_reset(user)
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.command('feedback') & filters.private)
     def feedback_start(_, message: Message):
         fields = Field.objects.all()
@@ -493,6 +549,7 @@ class BotHandler:
         )
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-start'))
     def feedback_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.all()
@@ -514,6 +571,7 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-terminator'))
     def feedback_terminator(_, callback: CallbackQuery):
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
@@ -561,6 +619,7 @@ class BotHandler:
                           cookies={'csrftoken': data['csrfmiddlewaretoken']})
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
     def feedback_course_selection(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
@@ -586,6 +645,7 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-course-(\d+)-b(\d+)'))
     def feedback_lecturer_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
@@ -624,6 +684,7 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)-b(\d+)'))
     def feedbacks_view(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
@@ -648,10 +709,10 @@ class BotHandler:
             callback.answer()
         else:
             callback.answer('هنوز هیچکس نظری برای این استاد ثبت نکرده😬'
-                            'اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید'
-                            , True)
+                            'اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید', True)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-like-(\d+)-b(\d+)'))
     def feedback_like(_, callback: CallbackQuery):
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
@@ -681,6 +742,7 @@ class BotHandler:
                 callback.message.edit_reply_markup(keyboard)
 
     @staticmethod
+    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-course-submit-(\d+)'))
     def feedback_submit_state_set(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
@@ -694,6 +756,7 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
+    @connection_check()
     @app.on_message(filters.text & filters.private & FEEDBACK_SUBMIT_FILTER)
     def feedback_submit(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
