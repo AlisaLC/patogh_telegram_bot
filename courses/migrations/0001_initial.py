@@ -50,15 +50,6 @@ class Migration(migrations.Migration):
                 ('lecture', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.lecture')),
             ],
         ),
-        migrations.CreateModel(
-            name='LectureClassSession',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('session_number', models.IntegerField()),
-                ('date', models.DateField()),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
-            ],
-        ),
         migrations.AddField(
             model_name='course',
             name='field',

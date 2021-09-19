@@ -327,7 +327,7 @@ class BotHandler:
     @staticmethod
     @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-view-session-(\d+)'))
-    def class_archives_video_view(_, callback: CallbackQuery):
+    def class_archives_video_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_sessions = LectureClassSession.objects.filter(id=session_id).all()
         lecture_class_session = lecture_class_sessions[0]
@@ -339,13 +339,27 @@ class BotHandler:
             keyboard.row(InlineKeyboardButton(
                 'بازگشت⬅️',
                 callback_data='class_archives-videos-course-' + str(course.id) + '-b' + str(course.field_id)))
-            callback.message.reply_text(
-                '🔹ویدیوی کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
-                    lecture_class_session.session_number) + 'ام' + '\n🔸تاریخ  ' + str(lecture_class_session.date) +
-                '\n🔹موضوع جلسه: ' + video.subject + '\n🔸ضبط توسط: ' + video.student.first_name + ' ' +
-                video.student.last_name + '\n\n' + video.link,
-                reply_markup=keyboard
-            )
+            try:
+                chat_id = video.link.split('/')[-2]
+                if chat_id.isdigit():
+                    chat_id = int(chat_id)
+                message_id = int(video.link.split('/')[-1])
+                client.copy_message(chat_id=callback.message.chat.id, from_chat_id=chat_id, message_id=message_id)
+                callback.message.reply_text(
+                    '🔹ویدیوی کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                        lecture_class_session.session_number) + 'ام' + '\n🔸تاریخ  ' + str(lecture_class_session.date) +
+                    '\n🔹موضوع جلسه: ' + video.subject + '\n🔸ضبط توسط: ' + video.student.first_name + ' ' +
+                    video.student.last_name,
+                    reply_markup=keyboard
+                )
+            except:
+                callback.message.reply_text(
+                    '🔹ویدیوی کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                        lecture_class_session.session_number) + 'ام' + '\n🔸تاریخ  ' + str(lecture_class_session.date) +
+                    '\n🔹موضوع جلسه: ' + video.subject + '\n🔸ضبط توسط: ' + video.student.first_name + ' ' +
+                    video.student.last_name + '\n\n' + video.link,
+                    reply_markup=keyboard
+                )
             callback.answer()
         else:
             keyboard.row(InlineKeyboardButton(
@@ -443,7 +457,7 @@ class BotHandler:
     @staticmethod
     @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-note-view-session-(\d+)-b(\d+)'))
-    def class_archives_note_view(_, callback: CallbackQuery):
+    def class_archives_note_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         note_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(id=session_id).all()
@@ -455,13 +469,27 @@ class BotHandler:
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='class_archives-notes-view-session-' + str(session_id)))
-        callback.message.reply_text(
-            '🔹جزوه کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
-                lecture_class_session.session_number) + 'ام\n🔸تاریخ  ' + str(
-                lecture_class_session.date) + '\n🔹موضوع جلسه: ' + note.subject + '\n🔸نوشته شده توسط: ' +
-            note.student.first_name + ' ' + note.student.last_name + '\n\n' + note.link,
-            reply_markup=keyboard
-        )
+        try:
+            chat_id = note.link.split('/')[-2]
+            if chat_id.isdigit():
+                chat_id = int(chat_id)
+            message_id = int(note.link.split('/')[-1])
+            client.copy_message(chat_id=callback.message.chat.id, from_chat_id=chat_id, message_id=message_id)
+            callback.message.reply_text(
+                '🔹جزوه کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                    lecture_class_session.session_number) + 'ام\n🔸تاریخ  ' + str(
+                    lecture_class_session.date) + '\n🔹موضوع جلسه: ' + note.subject + '\n🔸نوشته شده توسط: ' +
+                note.student.first_name + ' ' + note.student.last_name,
+                reply_markup=keyboard
+            )
+        except:
+            callback.message.reply_text(
+                '🔹جزوه کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name + '\n🔹جلسه  ' + str(
+                    lecture_class_session.session_number) + 'ام\n🔸تاریخ  ' + str(
+                    lecture_class_session.date) + '\n🔹موضوع جلسه: ' + note.subject + '\n🔸نوشته شده توسط: ' +
+                note.student.first_name + ' ' + note.student.last_name + '\n\n' + note.link,
+                reply_markup=keyboard
+            )
         callback.answer()
 
     @staticmethod
