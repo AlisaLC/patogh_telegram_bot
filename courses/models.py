@@ -11,7 +11,6 @@ class Field(models.Model):
 
 class Lecturer(models.Model):
     name = models.CharField(max_length=1000)
-    # mail = models.EmailField()
 
     def __str__(self):
         return self.name
@@ -58,6 +57,7 @@ class LectureClassSession(models.Model):
     session_number = models.IntegerField()
     date = models.DateField()
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    is_ta = models.BooleanField(default=False)
 
     def __str__(self):
-        return str(self.id) + ' - ' + str(self.course) + ' - ' + str(self.date)
+        return ('TA ' if self.is_ta else '') + str(self.course) + ' - ' + str(self.date)

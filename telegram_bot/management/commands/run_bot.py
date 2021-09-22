@@ -170,19 +170,20 @@ class BotHandler:
         fields = Field.objects.all()
         message.reply_text(
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
-            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
+            "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل "
+            "گروه‌های هر درس🔗 دسترسی داشته باشی😎\n "
             "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
-                           reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
-                               [
-                                   InlineKeyboardButton(
-                                       field.name,
-                                       callback_data='class_archives-field-' + str(field.id)
-                                   )
-                                   for field in fields
-                               ]
-                           ], 3)),
-                           reply_to_message_id=message.message_id
-                           )
+            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        field.name,
+                        callback_data='class_archives-field-' + str(field.id)
+                    )
+                    for field in fields
+                ]
+            ], 3)),
+            reply_to_message_id=message.message_id
+        )
 
     @staticmethod
     @connection_check()
@@ -292,7 +293,8 @@ class BotHandler:
                                        reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                                            [
                                                InlineKeyboardButton(
-                                                   ' جلسه ' + str(lecture_class_session.session_number),
+                                                   ' جلسه ' + str(lecture_class_session.session_number) + (
+                                                       ' TA' if lecture_class_session.is_ta else ''),
                                                    callback_data='class_archives-videos-view-session-' + str(
                                                        lecture_class_session.id)
                                                )
@@ -315,7 +317,8 @@ class BotHandler:
                                        reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                                            [
                                                InlineKeyboardButton(
-                                                   ' جلسه ' + str(lecture_class_session.session_number),
+                                                   ' جلسه ' + str(lecture_class_session.session_number) + (
+                                                       ' TA' if lecture_class_session.is_ta else ''),
                                                    callback_data='class_archives-notes-session-' + str(
                                                        lecture_class_session.id)
                                                )
@@ -380,7 +383,7 @@ class BotHandler:
     @staticmethod
     @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-add-session-(\d+)'))
-    def class_archives_videos_add(client: Client, callback: CallbackQuery):
+    def class_archives_videos_add(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         user.state.state = BotUserState.STATES[3][0]
@@ -438,7 +441,6 @@ class BotHandler:
     def class_archives_note_selection(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_session = LectureClassSession.objects.filter(id=session_id).first()
-        course = lecture_class_session.course
         notes = ClassNote.objects.filter(lecture_class_session_id=session_id).filter(is_verified=True).all()
         if notes:
             callback.message.edit_text("جزوه نوشته شده توسط کدوم یکی رو میخوای؟",
