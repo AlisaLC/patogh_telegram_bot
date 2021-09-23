@@ -28,13 +28,7 @@ class Command(BaseCommand):
 def connection_check():
     def decorate(func):
         def call(*args, **kwargs):
-            db_conn = False
-            while not db_conn:
-                try:
-                    connection.ensure_connection()
-                    db_conn = True
-                except OperationalError:
-                    time.sleep(1)
+            django.db.close_old_connections()
             result = func(*args, **kwargs)
             return result
 
