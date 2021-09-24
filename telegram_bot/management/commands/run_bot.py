@@ -165,6 +165,154 @@ class BotHandler:
 
     @staticmethod
     @connection_check()
+    @app.on_message(filters.command('subscribe') & filters.private)
+    def subscribe_start(_, message: Message):
+        fields = Field.objects.all()
+        message.reply_text(
+            "به این بخش جدید خوش آمدید",
+            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        field.name,
+                        callback_data='subscribe-field-' + str(field.id)
+                    )
+                    for field in fields
+                ]
+            ], 3)),
+            reply_to_message_id=message.message_id
+        )
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'subscribe_start'))
+    def subscribe_start_by_back(_, callback: CallbackQuery):
+        print("Back")
+        fields = Field.objects.all()
+        callback.message.edit_text(
+            "به این بخش جدید خوش آمدید",
+            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        field.name,
+                        callback_data='subscribe-field-' + str(field.id)
+                    )
+                    for field in fields
+                ]
+            ], 3))
+        )
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'subscribe-field-(\d+)'))
+    def subscribe_course(_, callback: CallbackQuery):
+        field_id = callback.matches[0].group(1)
+        courses = Course.objects.filter(field_id=field_id).all()
+        keyboard = BotHandler.arrange_per_row_max([
+            [
+                InlineKeyboardButton(
+                    course.lecturer.name,
+                    callback_data='subscribe-course-' + str(course.id) + '-b' + field_id
+                )
+                for course in courses
+            ]
+        ], 3)
+        keyboard.append([InlineKeyboardButton(
+            'بازگشت⬅️',
+            callback_data='subscribe_start'
+        )])
+        callback.message.edit_text(
+            "کدوم استاد؟🤔",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'subscribe-course-(\d+)-b(\d+)'))
+    def subscribe_lecture_selection(_, callback: CallbackQuery):
+        course_id = callback.matches[0].group(1)
+        course = Course.objects.filter(id=course_id).get()
+        field_id = callback.matches[0].group(2)
+        lectures = Lecture.objects.filter(course=course).all()
+        keyboard = BotHandler.arrange_per_row_max([
+            [
+                InlineKeyboardButton(
+                    lecture.course.field.name + ' - گروه ' + str(lecture.group_id),
+                    callback_data='subscribe-selection-lecture-' + str(lecture.id)
+                )
+                for lecture in lectures
+            ]
+        ], 1)
+        keyboard.append([InlineKeyboardButton(
+            'بازگشت⬅️',
+            callback_data='subscribe-field-' + str(field_id)
+        )])
+        callback.message.edit_text(
+            "گروه مورد نظر را انتخاب کنید.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'subscribe-selection-lecture-(\d+)'))
+    def subscribe_selection_lecture(_, callback: CallbackQuery):
+        lecture_id = callback.matches[0].group(1)
+        lecture = Lecture.objects.filter(id=lecture_id).get()
+        course = lecture.course
+        keyboard = InlineKeyboard()
+        subscribe_string = 'subscribe-add-lecture-' + str(lecture_id) + '-to-student-lectures'
+        unsubscribe_string = 'unsubscribe-add-lecture-' + str(lecture_id) + '-to-student-lectures'
+        user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
+        student = user.student
+        print(student.lectures.filter(id=lecture_id).exists())
+        is_subscribed = student.lectures.filter(id=lecture_id).exists()
+        keyboard.row(
+            InlineKeyboardButton(
+                "دیگر مایل به دنبال کردن این درس نیستم" if is_subscribed else "دنبال کردن این گروه",
+                callback_data=subscribe_string if is_subscribed else unsubscribe_string
+            )
+        )
+        keyboard.row(
+            InlineKeyboardButton(
+                'بازگشت⬅️',
+                callback_data='subscribe-course-' + str(course.id) + '-b' + str(course.field.id)
+            )
+        )
+        callback.message.edit_text(
+            'درس: ' + course.field.name + '\n' +
+            'استاد: ' + course.lecturer.name + '\n' +
+            'گروه: ' + str(lecture.group_id) + '\n' +
+            'انتخاب کنید.',
+            reply_markup=keyboard
+        )
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'unsubscribe-add-lecture-(\d+)-to-student-lectures'))
+    def unsubscribe_add_to_student_lectures(_, callback: CallbackQuery):
+        lecture_id = callback.matches[0].group(1)
+        lecture = Lecture.objects.filter(id=lecture_id).get()
+        user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
+        student = user.student
+        student.lectures.remove(lecture)
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'subscribe-add-lecture-(\d+)-to-student-lectures'))
+    def subscribe_add_to_student_lectures(_, callback: CallbackQuery):
+        lecture_id = callback.matches[0].group(1)
+        lecture = Lecture.objects.filter(id=lecture_id).get()
+        user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
+        student = user.student
+        student.lectures.add(lecture)
+        callback.answer()
+
+    @staticmethod
+    @connection_check()
     @app.on_message(filters.command('class_archives') & filters.private)
     def class_archives_start(_, message: Message):
         fields = Field.objects.all()
