@@ -29,6 +29,8 @@ class ClassNote(models.Model):
 class GroupLink(models.Model):
     class_link = models.TextField(default=' - ')
     source_link = models.TextField(default=' - ')
+    course_outline_link = models.TextField(default=' - ')
+    calender_link = models.TextField(default=' - ')
     telegram_link = models.TextField(default=' - ')
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 

@@ -102,6 +102,7 @@ class BotHandler:
         if user:
             user.chat_id = message.chat.id
             user.save()
+            message.reply_text('آقا عالی!\n خوش اومدی به بات... برای استفاده از بات از دستورات منو استفاده کن:)')
         else:
             user = BotUser(user_id=message.from_user.id, chat_id=message.chat.id)
             user.state = BotUserState.objects.create(state=BotUserState.STATES[0][0], data='')
@@ -320,17 +321,17 @@ class BotHandler:
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
             "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
             "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
-                           reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
-                               [
-                                   InlineKeyboardButton(
-                                       field.name,
-                                       callback_data='class_archives-field-' + str(field.id)
-                                   )
-                                   for field in fields
-                               ]
-                           ], 3)),
-                           reply_to_message_id=message.message_id
-                           )
+            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        field.name,
+                        callback_data='class_archives-field-' + str(field.id)
+                    )
+                    for field in fields
+                ]
+            ], 3)),
+            reply_to_message_id=message.message_id
+        )
 
     @staticmethod
     @connection_check()
@@ -396,7 +397,7 @@ class BotHandler:
                 callback_data='class_archives-notes-course-' + str(course.id) + '-b' + field_id
             ))
         keyboard.row(InlineKeyboardButton(
-            'لینک گروه تلگرامی درس️',
+            'لینک های مهم درس️',
             callback_data='class_archives-group_link-course-' + str(course_id) + '-b' + str(field_id)))
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
@@ -423,7 +424,13 @@ class BotHandler:
                 callback_data='class_archives-course-' + str(course.id) + '-b' + str(field_id)))
             callback.message.edit_text(
                 '🔹کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name +
-                '\n🔗لینک های کلاس:\n  🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n',
+                '\n✉️ایمیل استاد: ' + course.lecturer.mail +
+                '\n🔗لینک های کلاس:\n '
+                ' 🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n' +
+                ' 🔸محل تشکیل کلاس:' + '\n' + link.class_link + '\n' +
+                ' 🔹منابع درس:' + '\n' + link.source_link + '\n' +
+                ' 🔸طرح درس:' + '\n' + link.course_outline_link + '\n' +
+                ' 🔹تقویم کلاس:' + '\n' + link.calender_link + '\n',
                 reply_markup=keyboard)
             callback.answer()
         else:
@@ -434,20 +441,23 @@ class BotHandler:
     @app.on_callback_query(filters.regex(r'class_archives-videos-course-(\d+)-b(\d+)'))
     def class_archives_video_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
+        field_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
         if lecture_class_sessions:
-            callback.message.edit_text("کدوم جلسه؟...",
-                                       reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
-                                           [
-                                               InlineKeyboardButton(
-                                                   ' جلسه ' + str(lecture_class_session.session_number),
-                                                   callback_data='class_archives-videos-view-session-' + str(
-                                                       lecture_class_session.id)
-                                               )
-                                               for lecture_class_session in lecture_class_sessions
-                                           ]
-                                       ], 3)),
-                                       )
+            keyboard = BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        ' جلسه ' + str(lecture_class_session.session_number),
+                        callback_data='class_archives-videos-view-session-' + str(
+                            lecture_class_session.id)
+                    )
+                    for lecture_class_session in lecture_class_sessions
+                ],
+                [InlineKeyboardButton(
+                    'بازگشت⬅️',
+                    callback_data='class_archives-course-' + str(course_id) + '-b' + str(field_id))]
+            ], 3)
+            callback.message.edit_text("کدوم جلسه؟...", reply_markup=InlineKeyboardMarkup(keyboard))
             callback.answer()
         else:
             callback.answer("هنوز جلسه ای موجود نیست!", True)
@@ -457,6 +467,7 @@ class BotHandler:
     @app.on_callback_query(filters.regex(r'class_archives-notes-course-(\d+)-b(\d+)'))
     def class_archives_note_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
+        field_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
         if lecture_class_sessions:
             callback.message.edit_text("کدوم جلسه؟...",
@@ -468,7 +479,11 @@ class BotHandler:
                                                        lecture_class_session.id)
                                                )
                                                for lecture_class_session in lecture_class_sessions
-                                           ]
+                                           ],
+                                           [InlineKeyboardButton(
+                                               'بازگشت⬅️',
+                                               callback_data='class_archives-course-' + str(course_id) + '-b' + str(
+                                                   field_id))]
                                        ], 3)),
                                        )
             callback.answer()
@@ -599,7 +614,11 @@ class BotHandler:
                                                        note.id)
                                                )
                                                for note in notes
-                                           ]
+                                           ],
+                                           [InlineKeyboardButton(
+                                               'بازگشت⬅️',
+                                               callback_data='class_archives-notes-session-' + str(session_id)
+                                                )]
                                        ], 2)),
                                        )
             callback.answer()
