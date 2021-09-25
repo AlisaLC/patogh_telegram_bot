@@ -14,7 +14,7 @@ class Command(BaseCommand):
         current_time = datetime.datetime.now()
         current_day = datetime.datetime.today()
         lecture_sessions = LectureSession.objects.filter(
-            start_time__lt=current_time - datetime.timedelta(minutes=15), end_time__gt=current_time,
+            start_time__lt=current_time + datetime.timedelta(minutes=15), end_time__gt=current_time,
             day=(current_day.weekday() + 2) % 7).all()
         with app:
             for lecture_session in lecture_sessions:
