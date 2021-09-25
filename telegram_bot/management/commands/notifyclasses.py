@@ -10,13 +10,13 @@ from courses.models import LectureSession, LectureClassSession
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        app = Client('patogh_bot', bot_token=settings.BOT_TOKEN, api_id=settings.BOT_API_ID,
-                     api_hash=settings.BOT_API_HASH)
+        app = Client('patogh_bot_notify', bot_token=settings.BOT_TOKEN, api_id=settings.BOT_API_ID,
+                     api_hash=settings.BOT_API_HASH, no_updates=True)
         current_time = datetime.datetime.now()
         current_day = datetime.datetime.today()
         lecture_sessions = LectureSession.objects.filter(
-            start_time__lt=(current_time + datetime.timedelta(minutes=15)).strftime('%H:%M'),
-            end_time__gt=current_time.strftime('%H:%M'),
+            start_time__lt=current_time + datetime.timedelta(minutes=15),
+            end_time__gt=current_time,
             day=(current_day.weekday() + 2) % 7).all()
         with app:
             for lecture_session in lecture_sessions:
@@ -24,7 +24,6 @@ class Command(BaseCommand):
                     course_id=lecture_session.lecture.course.id, date=current_day).first()
                 if current_lecture_class_session:
                     continue
-                session_number = 1
                 try:
                     session_number = LectureClassSession.objects.filter(
                         course_id=lecture_session.lecture.course.id).latest(
