@@ -1,3 +1,5 @@
+import calendar
+
 from django.db import models
 
 
@@ -49,13 +51,13 @@ class Lecture(models.Model):
 
 class LectureSession(models.Model):
     DAYS_OF_WEEK = (
-        (0, 'Saturday'),
-        (1, 'Sunday'),
-        (2, 'Monday'),
-        (3, 'Tuesday'),
-        (4, 'Wednesday'),
-        (5, 'Thursday'),
-        (6, 'Friday'),
+        ('0', 'Saturday'),
+        ('1', 'Sunday'),
+        ('2', 'Monday'),
+        ('3', 'Tuesday'),
+        ('4', 'Wednesday'),
+        ('5', 'Thursday'),
+        ('6', 'Friday'),
     )
 
     lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE)
@@ -64,13 +66,16 @@ class LectureSession(models.Model):
     day = models.CharField(max_length=1, choices=DAYS_OF_WEEK)
 
     def __str__(self):
-        return str(self.lecture) + ' - ' + self.day + ' from ' + str(self.start_time) + ' to ' + str(self.end_time)
+        return str(self.lecture) + ' - ' + calendar.day_abbr[
+            (int(self.day) - 2) % 7] + ' from ' + self.start_time.strftime('%H:%M') + ' to ' + self.end_time.strftime(
+            '%H:%M')
 
 
 class LectureClassSession(models.Model):
     session_number = models.IntegerField()
     date = models.DateField()
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    is_ta = models.BooleanField(default=False)
 
     def __str__(self):
-        return str(self.id) + ' - ' + str(self.course) + ' - ' + str(self.date)
+        return ('TA ' if self.is_ta else '') + str(self.course) + ' - ' + self.date.strftime('%Y/%m/%d')

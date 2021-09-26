@@ -12,7 +12,7 @@ class ClassVideo(models.Model):
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
-        return str(self.lecture_class_session) + ' - ' + str(self.link)
+        return str(self.lecture_class_session) + ' - ' + str(self.subject)
 
 
 class ClassNote(models.Model):
@@ -23,7 +23,7 @@ class ClassNote(models.Model):
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
-        return str(self.lecture_class_session) + ' - ' + str(self.link)
+        return str(self.lecture_class_session) + ' - ' + str(self.subject)
 
 
 class GroupLink(models.Model):
@@ -35,4 +35,4 @@ class GroupLink(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
-        return str(self.course) + ' - ' + str(self.telegram_link)
+        return str(self.course)
