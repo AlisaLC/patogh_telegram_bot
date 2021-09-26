@@ -1,17 +1,19 @@
 import re
+import time
 
 import requests
 from bs4 import BeautifulSoup
 from django import db
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import connection, OperationalError
 from django.db.models import Count
 from pykeyboard import InlineKeyboard
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
 from archives.models import ClassVideo, ClassNote, GroupLink
-from courses.models import Field, Course, Lecture
+from courses.models import Field, Course, Lecture, Department
 from courses.models import LectureClassSession
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
@@ -61,9 +63,12 @@ class BotHandler:
     FEEDBACK_SUBMIT_FILTER = filters.create(
         lambda _, __, message: BotUser.objects.filter(
             user_id=message.from_user.id).get().state.state == BotUserState.STATES[1][0])
-    ARCHIVE_ADD_FILE_LINK_FILTER = filters.create(
+    ARCHIVE_ADD_VIDEO_LINK_FILTER = filters.create(
         lambda _, __, message: BotUser.objects.filter(
             user_id=message.from_user.id).get().state.state == BotUserState.STATES[3][0])
+    ARCHIVE_ADD_NOTE_LINK_FILTER = filters.create(
+        lambda _, __, message: BotUser.objects.filter(
+            user_id=message.from_user.id).get().state.state == BotUserState.STATES[4][0])
 
     # ARCHIVE_ADD_SUBJECT_FILTER = filters.create(
     #     lambda _, __, message: BotUser.objects.filter(
@@ -95,6 +100,7 @@ class BotHandler:
         if user:
             user.chat_id = message.chat.id
             user.save()
+            message.reply_text('آقا عالی!\n خوش اومدی به بات... برای استفاده از بات از دستورات منو استفاده کن:)')
         else:
             user = BotUser(user_id=message.from_user.id, chat_id=message.chat.id)
             user.state = BotUserState.objects.create(state=BotUserState.STATES[0][0], data='')
@@ -509,6 +515,7 @@ class BotHandler:
     def class_archives_archive_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
+        # field_id = callback.matches[0].group(2)
         keyboard = InlineKeyboard()
         keyboard.row(InlineKeyboardButton(
             'آرشیو ویدیوهای کلاس',
@@ -519,7 +526,7 @@ class BotHandler:
                 callback_data='class_archives-notes-course-' + str(course.id)
             ))
         keyboard.row(InlineKeyboardButton(
-            'لینک گروه تلگرامی درس️',
+            'لینک های مهم درس️',
             callback_data='class_archives-group_link-course-' + str(course_id)))
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
@@ -544,7 +551,13 @@ class BotHandler:
                 callback_data='class_archives-course-' + str(course.id)))
             callback.message.edit_text(
                 '🔹کلاس ' + course.field.name + '\n🔸استاد درس: ' + course.lecturer.name +
-                '\n🔗لینک های کلاس:\n  🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n',
+                '\n✉️ایمیل استاد: ' + course.lecturer.mail +
+                '\n🔗لینک های کلاس:\n '
+                ' 🔹گروه تلگرام:' + '\n' + link.telegram_link + '\n' +
+                ' 🔸محل تشکیل کلاس:' + '\n' + link.class_link + '\n' +
+                ' 🔹منابع درس:' + '\n' + link.source_link + '\n' +
+                ' 🔸طرح درس:' + '\n' + link.course_outline_link + '\n' +
+                ' 🔹تقویم کلاس:' + '\n' + link.calender_link + '\n',
                 reply_markup=keyboard)
             callback.answer()
         else:
@@ -669,7 +682,7 @@ class BotHandler:
 
     @staticmethod
     @connection_check()
-    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
+    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_VIDEO_LINK_FILTER)
     def class_archive_submit_video(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         video = ClassVideo()
@@ -776,7 +789,7 @@ class BotHandler:
     def class_archive_add_note(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
-        user.state.state = BotUserState.STATES[3][0]
+        user.state.state = BotUserState.STATES[4][0]
         user.state.data = str(session_id)
         user.state.save()
         callback.message.reply_text(
@@ -787,7 +800,7 @@ class BotHandler:
 
     @staticmethod
     @connection_check()
-    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
+    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_NOTE_LINK_FILTER)
     def class_archive_submit_note(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         note = ClassNote()

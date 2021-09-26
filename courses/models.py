@@ -3,16 +3,30 @@ import calendar
 from django.db import models
 
 
+class Department(models.Model):
+    name = models.CharField(max_length=1000)
+    shortname = models.CharField(max_length=5)
+
+    def __str__(self):
+        return self.name + ' - ' + self.shortname
+
+
+# def get_default_department():
+#     return Department.objects.get_or_create(name='دانشکده مهندسی کامپیوتر', shortname='CE')
+
+
 class Field(models.Model):
     id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=1000)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
-        return str(self.id) + ' - ' + self.name
+        return str(self.id) + ' - ' + self.name + ' - ' + str(self.department)
 
 
 class Lecturer(models.Model):
     name = models.CharField(max_length=1000)
+    mail = models.EmailField(default=' - ')
 
     def __str__(self):
         return self.name
