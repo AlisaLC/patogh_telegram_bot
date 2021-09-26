@@ -12,7 +12,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
 from archives.models import ClassVideo, ClassNote, GroupLink
-from courses.models import Field, Course, Lecture
+from courses.models import Field, Course, Lecture, Department
 from courses.models import LectureClassSession
 from feedbacks.models import Feedback, FeedbackLike
 from students.models import Student
@@ -68,9 +68,12 @@ class BotHandler:
     FEEDBACK_SUBMIT_FILTER = filters.create(
         lambda _, __, message: BotUser.objects.filter(
             user_id=message.from_user.id).get().state.state == BotUserState.STATES[1][0])
-    ARCHIVE_ADD_FILE_LINK_FILTER = filters.create(
+    ARCHIVE_ADD_VIDEO_LINK_FILTER = filters.create(
         lambda _, __, message: BotUser.objects.filter(
             user_id=message.from_user.id).get().state.state == BotUserState.STATES[3][0])
+    ARCHIVE_ADD_NOTE_LINK_FILTER = filters.create(
+        lambda _, __, message: BotUser.objects.filter(
+            user_id=message.from_user.id).get().state.state == BotUserState.STATES[4][0])
 
     # ARCHIVE_ADD_SUBJECT_FILTER = filters.create(
     #     lambda _, __, message: BotUser.objects.filter(
@@ -316,20 +319,21 @@ class BotHandler:
     @connection_check()
     @app.on_message(filters.command('class_archives') & filters.private)
     def class_archives_start(_, message: Message):
-        fields = Field.objects.all()
+        departments = Department.objects.all()
         message.reply_text(
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
             "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
-            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
+            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)\n"
+            "دانشکده مورد نظرتو انتخاب کن!",
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
-                        field.name,
-                        callback_data='class_archives-field-' + str(field.id)
+                        department.name,
+                        callback_data='class_archives-department-' + str(department.id)
                     )
-                    for field in fields
+                    for department in departments
                 ]
-            ], 3)),
+            ], 2)),
             reply_to_message_id=message.message_id
         )
 
@@ -337,12 +341,54 @@ class BotHandler:
     @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-start'))
     def class_archives_start_by_back(_, callback: CallbackQuery):
-        fields = Field.objects.all()
+        departments = Department.objects.all()
         callback.message.edit_text(
             "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
             "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل "
             "گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
-            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
+            "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)\n"
+            "دانشکده مورد نظرتو انتخاب کن!",
+            reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+                [
+                    InlineKeyboardButton(
+                        department.name,
+                        callback_data='class_archives-department-' + str(department.id)
+                    )
+                    for department in departments
+                ]
+            ], 2))
+        )
+        callback.answer()
+
+    # @staticmethod
+    # @connection_check()
+    # @app.on_message(filters.command('class_archives') & filters.private)
+    # def class_archives_start(_, message: Message):
+    #     fields = Field.objects.all()
+    #     message.reply_text(
+    #         "به آرشیو کامل کلاس‌ها خوش اومدی👋🏻\n"
+    #         "تو اینجا میتونی به اطلاعات کامل هر دوره مثل ویدیوهای ضبط شده🎥، جزوه های دست نویس📝، و لینک های مهم مثل گروه‌های هر درس🔗 دسترسی داشته باشی😎\n"
+    #         "حتی میتونی آرشیو مارو با فایل‌هات کاملتر هم بکنی:)",
+    #         reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
+    #             [
+    #                 InlineKeyboardButton(
+    #                     field.name,
+    #                     callback_data='class_archives-field-' + str(field.id)
+    #                 )
+    #                 for field in fields
+    #             ]
+    #         ], 3)),
+    #         reply_to_message_id=message.message_id
+    #     )
+    #
+    @staticmethod
+    @connection_check()
+    @app.on_callback_query(filters.regex(r'class_archives-department-(\d+)'))
+    def class_archives_start_by_back(_, callback: CallbackQuery):
+        department_id = callback.matches[0].group(1)
+        fields = Field.objects.filter(department_id=department_id).all()
+        callback.message.edit_text(
+            'کدوم درس رو انتخاب میکنی؟\n',
             reply_markup=InlineKeyboardMarkup(BotHandler.arrange_per_row_max([
                 [
                     InlineKeyboardButton(
@@ -452,11 +498,11 @@ class BotHandler:
                             lecture_class_session.id)
                     )
                     for lecture_class_session in lecture_class_sessions
-                ],
+                ]
+            ] + [
                 [InlineKeyboardButton(
                     'بازگشت⬅️',
-                    callback_data='class_archives-course-' + str(course_id) + '-b' + str(field_id))]
-            ], 3)
+                    callback_data='class_archives-course-' + str(course_id) + '-b' + str(field_id))]], 3)
             callback.message.edit_text("کدوم جلسه؟...", reply_markup=InlineKeyboardMarkup(keyboard))
             callback.answer()
         else:
@@ -479,12 +525,11 @@ class BotHandler:
                                                        lecture_class_session.id)
                                                )
                                                for lecture_class_session in lecture_class_sessions
-                                           ],
-                                           [InlineKeyboardButton(
+                                           ]
+                                       ] + [[InlineKeyboardButton(
                                                'بازگشت⬅️',
                                                callback_data='class_archives-course-' + str(course_id) + '-b' + str(
-                                                   field_id))]
-                                       ], 3)),
+                                                   field_id))]], 3)),
                                        )
             callback.answer()
         else:
@@ -557,7 +602,7 @@ class BotHandler:
 
     @staticmethod
     @connection_check()
-    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
+    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_VIDEO_LINK_FILTER)
     def class_archive_submit_video(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         video = ClassVideo()
@@ -614,12 +659,11 @@ class BotHandler:
                                                        note.id)
                                                )
                                                for note in notes
-                                           ],
-                                           [InlineKeyboardButton(
-                                               'بازگشت⬅️',
-                                               callback_data='class_archives-notes-session-' + str(session_id)
-                                                )]
-                                       ], 2)),
+                                           ]
+                                       ] + [[InlineKeyboardButton(
+                                           'بازگشت⬅️',
+                                           callback_data='class_archives-notes-session-' + str(session_id)
+                                       )]], 2)),
                                        )
             callback.answer()
         else:
@@ -669,7 +713,7 @@ class BotHandler:
     def class_archive_add_note(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
-        user.state.state = BotUserState.STATES[3][0]
+        user.state.state = BotUserState.STATES[4][0]
         user.state.data = str(session_id)
         user.state.save()
         callback.message.reply_text('فایل را در هر مکان قابل دسترسی بارگذاری کرده و فقط لینک فایل را ارسال کنید.\n'
@@ -680,7 +724,7 @@ class BotHandler:
 
     @staticmethod
     @connection_check()
-    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_FILE_LINK_FILTER)
+    @app.on_message(filters.text & filters.private & ARCHIVE_ADD_NOTE_LINK_FILTER)
     def class_archive_submit_note(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         note = ClassNote()

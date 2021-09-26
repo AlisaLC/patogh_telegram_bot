@@ -7,7 +7,8 @@ class BotUserState(models.Model):
     STATES = ((0, 'None'),
               (1, 'Giving Feedback'),
               (2, 'Authorizing'),
-              (3, 'Archiving'))
+              (3, 'Archiving Video'),
+              (4, 'Archiving Note'))
 
     state = models.IntegerField(choices=STATES)
     data = models.TextField()
