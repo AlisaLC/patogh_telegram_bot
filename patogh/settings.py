@@ -78,9 +78,9 @@ WSGI_APPLICATION = 'patogh.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'patogh',
-        'USER': 'admin',
-        'PASSWORD': 'MTNM1783',
+        'NAME': 'NAME',
+        'USER': 'USER',
+        'PASSWORD': 'PASSWORD',
         'OPTIONS': {'charset': 'utf8mb4'},
         'CONN_MAX_AGE': 3600,
     }
@@ -127,8 +127,8 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-BOT_TOKEN = '1912123189:AAGt92LmNzRt7YoL7hq-TB-5WCk8AQFGjg8'
+BOT_TOKEN = 'BOT_TOKEN'
 
-BOT_API_ID = 7306558
+BOT_API_ID = 'BOT_API_ID'
 
-BOT_API_HASH = '4e0de659bb04e68c60c3354076e436a0'
+BOT_API_HASH = 'BOT_API_HASH'
