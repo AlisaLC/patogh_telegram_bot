@@ -515,7 +515,7 @@ class BotHandler:
     def class_archives_archive_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
-        field_id = callback.matches[0].group(2)
+        # field_id = callback.matches[0].group(2)
         keyboard = InlineKeyboard()
         keyboard.row(InlineKeyboardButton(
             'آرشیو ویدیوهای کلاس',
@@ -527,7 +527,7 @@ class BotHandler:
             ))
         keyboard.row(InlineKeyboardButton(
             'لینک های مهم درس️',
-            callback_data='class_archives-group_link-course-' + str(course_id) + '-b' + str(field_id)))
+            callback_data='class_archives-group_link-course-' + str(course_id)))
         keyboard.row(InlineKeyboardButton(
             'بازگشت⬅️',
             callback_data='class_archives-field-' + str(course.field.id)))
@@ -595,7 +595,6 @@ class BotHandler:
     @app.on_callback_query(filters.regex(r'class_archives-notes-course-(\d+)'))
     def class_archives_note_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
-        field_id = callback.matches[0].group(2)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
         if lecture_class_sessions:
             callback.message.edit_text(
