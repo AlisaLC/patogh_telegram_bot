@@ -93,8 +93,8 @@ class BotHandler:
         user.state.save()
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('start') & filters.private)
+    @connection_check()
     def user_start(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).first()
         if user:
@@ -109,16 +109,16 @@ class BotHandler:
             message.reply_text('دانشجوی گرامی لطفاً هر چه زودتر هویت خود را از طریق دستور /authorize احراز نمایید.')
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('cancel') & filters.private)
+    @connection_check()
     def user_cancel(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         BotHandler.user_state_reset(user)
         message.reply_text('درخواست شما لغو شد.')
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('authorize') & filters.private)
+    @connection_check()
     def user_authorize(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         message.reply_text('نام کوچک خود را وارد کنید.')
@@ -127,9 +127,9 @@ class BotHandler:
         user.state.save()
 
     @staticmethod
-    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_FIRST_NAME_FILTER)
+    @connection_check()
     def authorization_first_name(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.first_name = message.text
@@ -139,9 +139,9 @@ class BotHandler:
         message.reply_text('نام خانوادگی خود را وارد کنید.')
 
     @staticmethod
-    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_LAST_NAME_FILTER)
+    @connection_check()
     def authorization_last_name(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.last_name = message.text
@@ -151,9 +151,9 @@ class BotHandler:
         message.reply_text('شماره دانشجویی خود را وارد کنید.')
 
     @staticmethod
-    @connection_check()
     @app.on_message(
         filters.text & filters.private & AUTHORIZATION_STUDENT_ID_FILTER)
+    @connection_check()
     def authorization_student_id(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         user.student.student_id = message.text
@@ -163,8 +163,8 @@ class BotHandler:
                            'مورداستفاده قرار خواهد گرفت.')
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('subscribe') & filters.private)
+    @connection_check()
     def subscribe_start(_, message: Message):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -189,8 +189,8 @@ class BotHandler:
         )
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe_start'))
+    @connection_check()
     def subscribe_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -215,8 +215,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-terminator'))
+    @connection_check()
     def subscribe_terminator(_, callback: CallbackQuery):
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         student_id = str(user.student.student_id)
@@ -259,8 +259,8 @@ class BotHandler:
         return rows
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-show-lectures'))
+    @connection_check()
     def subscribe_show_lectures(_, callback: CallbackQuery):
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         lectures = user.student.lectures.all()
@@ -282,8 +282,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-field-(\d+)'))
+    @connection_check()
     def subscribe_course(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
         courses = Course.objects.filter(field_id=field_id).annotate(num_students=Count('lecture__student')).order_by(
@@ -311,8 +311,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-course-(\d+)'))
+    @connection_check()
     def subscribe_lecture_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
@@ -337,8 +337,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-view-lecture-(\d+)'))
+    @connection_check()
     def subscribe_selection_lecture(_, callback: CallbackQuery):
         lecture_id = callback.matches[0].group(1)
         lecture = Lecture.objects.filter(id=lecture_id).get()
@@ -372,8 +372,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-remove-lecture-(\d+)'))
+    @connection_check()
     def unsubscribe_add_to_student_lectures(_, callback: CallbackQuery):
         lecture_id = callback.matches[0].group(1)
         lecture = Lecture.objects.filter(id=lecture_id).get()
@@ -405,8 +405,8 @@ class BotHandler:
         )
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'subscribe-add-lecture-(\d+)'))
+    @connection_check()
     def subscribe_add_to_student_lectures(_, callback: CallbackQuery):
         lecture_id = callback.matches[0].group(1)
         lecture = Lecture.objects.filter(id=lecture_id).get()
@@ -438,8 +438,8 @@ class BotHandler:
         )
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('class_archives') & filters.private)
+    @connection_check()
     def class_archives_start(_, message: Message):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -461,8 +461,8 @@ class BotHandler:
         )
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-start'))
+    @connection_check()
     def class_archives_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -484,8 +484,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-field-(\d+)'))
+    @connection_check()
     def class_archives_course_selection(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
         courses = Course.objects.filter(field_id=field_id).annotate(num_students=Count('lecture__student')).order_by(
@@ -510,8 +510,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-course-(\d+)'))
+    @connection_check()
     def class_archives_archive_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
@@ -538,8 +538,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-group_link-course-(\d+)'))
+    @connection_check()
     def class_archives_link_view(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
@@ -564,8 +564,8 @@ class BotHandler:
             callback.answer('گروهی یافت نشد!', True)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-course-(\d+)'))
+    @connection_check()
     def class_archives_video_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
@@ -591,8 +591,8 @@ class BotHandler:
             callback.answer('هنوز جلسه ای موجود نیست!', True)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-course-(\d+)'))
+    @connection_check()
     def class_archives_note_session_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         lecture_class_sessions = LectureClassSession.objects.filter(course_id=course_id).all()
@@ -618,8 +618,8 @@ class BotHandler:
             callback.answer('هنوز جلسه ای موجود نیست!', True)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-view-session-(\d+)'))
+    @connection_check()
     def class_archives_video_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_session = LectureClassSession.objects.filter(id=session_id).first()
@@ -666,8 +666,8 @@ class BotHandler:
             callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-videos-add-session-(\d+)'))
+    @connection_check()
     def class_archives_videos_add(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
@@ -681,8 +681,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.text & filters.private & ARCHIVE_ADD_VIDEO_LINK_FILTER)
+    @connection_check()
     def class_archive_submit_video(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         video = ClassVideo()
@@ -696,8 +696,8 @@ class BotHandler:
         BotHandler.user_state_reset(user)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-session-(\d+)'))
+    @connection_check()
     def class_archives_notes_action_selection(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         lecture_class_session = LectureClassSession.objects.filter(id=session_id).first()
@@ -721,8 +721,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-view-session-(\d+)'))
+    @connection_check()
     def class_archives_note_selection(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         notes = ClassNote.objects.filter(lecture_class_session_id=session_id).filter(is_verified=True).all()
@@ -748,8 +748,8 @@ class BotHandler:
             callback.answer('هنوز جزوه ای برای این جلسه به آرشیو اضافه نشده! در کامل کردن آرشیو سهیم باشید:)', True)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-note-view-session-(\d+)-note(\d+)'))
+    @connection_check()
     def class_archives_note_view(client: Client, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         note_id = callback.matches[0].group(2)
@@ -784,8 +784,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'class_archives-notes-add-session-(\d+)'))
+    @connection_check()
     def class_archive_add_note(_, callback: CallbackQuery):
         session_id = callback.matches[0].group(1)
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
@@ -799,8 +799,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.text & filters.private & ARCHIVE_ADD_NOTE_LINK_FILTER)
+    @connection_check()
     def class_archive_submit_note(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         note = ClassNote()
@@ -814,8 +814,8 @@ class BotHandler:
         BotHandler.user_state_reset(user)
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.command('feedback') & filters.private)
+    @connection_check()
     def feedback_start(_, message: Message):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -837,8 +837,8 @@ class BotHandler:
         )
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-start'))
+    @connection_check()
     def feedback_start_by_back(_, callback: CallbackQuery):
         fields = Field.objects.annotate(num_students=Count('course__lecture__student')).order_by('-num_students',
                                                                                                  'name')
@@ -860,8 +860,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-terminator'))
+    @connection_check()
     def feedback_terminator(_, callback: CallbackQuery):
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
         student_id = str(user.student.student_id)
@@ -912,8 +912,8 @@ class BotHandler:
                           cookies={'csrftoken': data['csrfmiddlewaretoken']})
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-field-(\d+)'))
+    @connection_check()
     def feedback_course_selection(_, callback: CallbackQuery):
         field_id = callback.matches[0].group(1)
         courses = Course.objects.filter(field_id=field_id).annotate(num_students=Count('lecture__student')).order_by(
@@ -939,8 +939,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-course-(\d+)'))
+    @connection_check()
     def feedback_lecturer_selection(_, callback: CallbackQuery):
         course_id = callback.matches[0].group(1)
         course = Course.objects.filter(id=course_id).get()
@@ -977,8 +977,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-view-(\d+)-p-(\d+)'))
+    @connection_check()
     def feedbacks_view(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
         page = int(callback.matches[0].group(2))
@@ -1004,8 +1004,8 @@ class BotHandler:
                             'اگه تجربه‌ای دارید با ثبتش به ما و بقیه دانشجو‌ها کمک کنید', True)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-like-(\d+)'))
+    @connection_check()
     def feedback_like(_, callback: CallbackQuery):
         feedback = Feedback.objects.filter(id=callback.matches[0].group(1)).filter(is_verified=True).get()
         feedbacks = Feedback.objects.filter(course_id=feedback.course.id).filter(is_verified=True).annotate(
@@ -1032,8 +1032,8 @@ class BotHandler:
             callback.message.edit_reply_markup(keyboard)
 
     @staticmethod
-    @connection_check()
     @app.on_callback_query(filters.regex(r'feedback-course-submit-(\d+)'))
+    @connection_check()
     def feedback_submit_state_set(_, callback: CallbackQuery):
         course = Course.objects.filter(id=callback.matches[0].group(1)).get()
         user = BotUser.objects.filter(chat_id=callback.message.chat.id).get()
@@ -1046,8 +1046,8 @@ class BotHandler:
         callback.answer()
 
     @staticmethod
-    @connection_check()
     @app.on_message(filters.text & filters.private & FEEDBACK_SUBMIT_FILTER)
+    @connection_check()
     def feedback_submit(_, message: Message):
         user = BotUser.objects.filter(user_id=message.from_user.id).get()
         feedback = Feedback()
